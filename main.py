@@ -16,33 +16,46 @@ client = OpenAI(
     base_url="https://api.groq.com/openai/v1"
 )
 
+# remove spaces and hyphen from the table name replace them with underscore
 def stdize_table_name(filename):
-    """Standardize table names by removing spaces and hyphens"""
     name = os.path.splitext(filename)[0]
     return name.replace(" ", "_").replace("-", "_")
 
+# Create SQLite database from Excel files
 def make_db(dir, db_name):
-    """Create SQLite database from Excel files"""
+    
     conn = sqlite3.connect(db_name)
+
     for filename in os.listdir(dir):
+
         if filename.endswith(".xlsx"):
+            # Load each Excel file into a table
             file_path = os.path.join(dir, filename)
+            #removes spaces from table name
             table_name = stdize_table_name(filename)
             try:
+                # excel to dataframe
                 df = pd.read_excel(file_path)
+                # dataframe to sqlite table 
                 df.to_sql(table_name, conn, if_exists="replace", index=False)
+
                 print(f"Loaded '{filename}' as table '{table_name}'")
             except Exception as e:
                 print(f"Error loading {filename}: {e}")
     conn.close()
 
+# returns table names and columns in the database in str format
 def get_db_schema(db_path):
-    """Get complete database schema with table and column information"""
+   #initalize a connection to the database
     conn = sqlite3.connect(db_path)
+    # connection obj
     cursor = conn.cursor()
     schema = []
+
+    # get all table names
     cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
     tables = cursor.fetchall()
+
     for (table,) in tables:
         cursor.execute(f"PRAGMA table_info('{table}')")
         columns = cursor.fetchall()
@@ -50,6 +63,9 @@ def get_db_schema(db_path):
         schema.append(f"Table: {table}\nColumns: {', '.join(column_descriptions)}\n")
     conn.close()
     return "\n".join(schema)
+
+# print(get_db_schema("excel_data.db"))
+
 
 def get_table_sample(db_path, table_name, limit=3):
     """Get sample rows from a table"""
@@ -61,11 +77,9 @@ def get_table_sample(db_path, table_name, limit=3):
     conn.close()
     return columns, rows
 
+# two step query generation - pros: get resoning cons: little costlier(2 api calls)
 def identify_relevant_schema(schema_str, user_question):
-    """
-    First LLM call: Identify which tables and columns are relevant
-    to answer the user's question.
-    """
+
     system_prompt = """You are a database analyst that identifies which tables and columns 
     are needed to answer a user's question. Return ONLY a JSON format response with:
     - "tables": List of relevant table names
@@ -92,7 +106,6 @@ def identify_relevant_schema(schema_str, user_question):
     try:
         return eval(response.choices[0].message.content)
     except:
-        # Fallback if JSON parsing fails
         return {
             "tables": [],
             "columns": {},
@@ -100,15 +113,12 @@ def identify_relevant_schema(schema_str, user_question):
         }
 
 def generate_sql(schema_str, user_question, focused_schema):
-    """
-    Second LLM call: Generate SQL query using only the focused schema elements
-    """
+   
     system_prompt = """You are an expert SQL developer. Write a SQLite query that:
     1. Answers the user's question precisely
     2. Uses only the tables and columns provided in the focused schema
     3. Includes appropriate JOINs where needed
-    4. Handles edge cases like NULL values
-    5. Is optimized for performance
+
 
     All generated queries must be for the SQLite 3 dialect
     Return ONLY the SQL query, nothing else."""
@@ -119,8 +129,7 @@ def generate_sql(schema_str, user_question, focused_schema):
     Relevant database elements:
     {focused_schema}
 
-    Write a SQL query that answers the question using only these tables and columns.
-    Include comments for complex operations if needed."""
+    Write a SQL query for SQLite DB that answers the question using only these tables and columns. """
 
     response = client.chat.completions.create(
         model="llama3-8b-8192",
@@ -312,3 +321,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+    # pass
