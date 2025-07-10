@@ -1,11 +1,11 @@
-## 🚀 Features
+##  Features
 
-✅ Load multiple Excel files into a single SQLite DB  
-✅ Automatically normalize table names  
-✅ Identify relevant schema 
-✅ Generate precise SQL queries (SQLite 3 syntax)  
-✅ Execute SQL query
-✅ Summarize results in natural language  
+- Load multiple Excel files into a single SQLite DB
+- Automatically normalize table names
+- Identify relevant schema
+- Generate precise SQL queries (SQLite 3 syntax)
+- Execute SQL query
+- Summarize results in natural language  
 
 1) Clone the REPO 
 
